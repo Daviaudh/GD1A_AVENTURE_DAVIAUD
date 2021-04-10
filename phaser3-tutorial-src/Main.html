@@ -1,0 +1,31 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>Making your first Phaser 3 Game - Part 10</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <script type ="text/javascript">
+    var config = {
+        type:phaser.AUTO,
+        width:1920,
+        height:1080,
+        input:{gamepad : true},
+        scene: [Menu, Scene1, Scene2],
+    }; 
+    var game = new Phaser.Game(config)
+    
+    function create(){this.scene.start("menu")}
+        
+    </script>
+    
+    
+    
+    
+</body>

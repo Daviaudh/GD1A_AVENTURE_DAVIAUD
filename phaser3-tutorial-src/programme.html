@@ -1,0 +1,340 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>Making your first Phaser 3 Game - Part 10</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+var config = {
+    type: Phaser.AUTO,
+    width: 2560,
+    height: 1440,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 100 },
+            debug: false
+        }
+    },
+    input:{gamepad: true},
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
+var xAxis=0;
+var yAxis=0;
+var createMeteorite = true;
+var groupeLaser;
+var boutonFeu; 
+var player;
+var stars;
+var meteorite;
+var platforms;
+var cursors;
+var score = 0;
+var gameOver = false;
+var scoreText;
+var ville1;
+var game = new Phaser.Game(config);
+
+function preload ()
+{
+    
+    this.load.image('fond', 'assets/FondV2.jpg');
+    this.load.image('sol', 'assets/Sol.png');
+    this.load.image('ground', 'assets/platform1.png');
+    this.load.image('star', 'assets/cellule.png');
+    this.load.image('laser', 'assets/laser.png');
+    this.load.image('ville', 'assets/Ville.png');
+    this.load.image('gameOver', 'assets/GameOver.png');
+    this.load.image('rapidFire', 'assets/rapidFire.png');
+    this.load.spritesheet('vaisseau', 'assets/SpriteSheet_Vaisseau.png', { frameWidth: 62, frameHeight: 33 });
+    this.load.spritesheet('meteorite', 'assets/SpriteSheetMeteorite.png', { frameWidth: 71, frameHeight: 72 });
+        
+    this.iter = 3.14;
+}
+
+function create ()
+{
+   
+    groupeLaser = this.physics.add.group();
+   
+    //  A simple background for our game
+    this.add.image(1280, 720, 'fond');
+
+    //  The platforms group contains the ground and the 2 ledges we can jump on
+    platforms = this.physics.add.staticGroup();
+
+    //  Here we create the ground.
+    //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
+    platforms.create(1280, 1300, 'sol').setScale(2).refreshBody();
+    //  Now let's create some ledges
+    platforms.create(600, 500, 'ground');
+    platforms.create(1800, 1000, 'ground');
+    platforms.create(50, 250, 'ground');
+    platforms.create(2000, 500, 'ground');
+    platforms.create(2300, 250, 'ground');
+    platforms.create(700, 1000, 'ground');
+
+    // The player and its settings
+    player = this.physics.add.sprite(100, 450, 'vaisseau');
+
+    //  Player physics properties. Give the little guy a slight bounce.
+    player.direction='right';
+    player.setBounce(0.2);
+    player.setCollideWorldBounds(true);
+
+    //  Our player animations, turning, walking left and walking right.
+    this.anims.create({
+        key: 'left',
+        frames: this.anims.generateFrameNumbers('vaisseau', { start: 15, end: 19 }),
+        frameRate: 10,
+     
+    });
+
+    this.anims.create({
+        key: 'turn',
+        frames: [ { key: 'vaisseau', frame: 2 } ],
+        frameRate: 20
+    });
+
+    this.anims.create({
+        key: 'right',
+        frames: this.anims.generateFrameNumbers('vaisseau', { start: 10, end: 14 }),
+        frameRate: 10,
+      
+    });
+    
+    this.anims.create({
+        key: 'up',
+        frames: this.anims.generateFrameNumbers('vaisseau', { start: 5, end: 9 }),
+        duration: 600,
+      
+    });
+    
+    this.anims.create({
+        key: 'meteoriteIntact',
+        frames: [ { key: 'meteorite', frame: 0 } ],
+        frameRate: 10,
+     
+    });
+    
+      this.anims.create({
+        key: 'meteoriteCasse',
+        frames: this.anims.generateFrameNumbers('meteorite', { start: 0, end: 2 }),
+        frameRate: 5,
+        repeat: 0,
+    });
+    
+
+    //  Input Events
+    cursors = this.input.keyboard.createCursorKeys();
+
+    //  Some stars to collect, 12 in total, evenly spaced 70 pixels apart along the x axis
+    stars = this.physics.add.group({
+        key: 'star',
+        repeat: 12,
+        setXY: { x: 12, y: 0, stepX: 180 }
+    });
+    stars.children.iterate(function (child) {
+
+        //  Give each star a slightly different bounce
+        child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+
+    });
+
+    meteorites = this.physics.add.group();
+    
+    ville = this.physics.add.group();
+    ville1 = ville.create(1800, 800, 'ville');
+    ville2 = ville.create(600, 500, 'ville');
+    ville3 = ville.create(2300, 250, 'ville');
+    ville4 = ville.create(700, 1000, 'ville');
+    this.physics.add.collider(ville, platforms);
+    this.physics.add.overlap(groupeLaser, meteorites, hitMeteorite, null, this);
+    this.physics.add.overlap(ville, meteorites, hitVille, null, this);
+    //this.physics.add.overlap(ville, groupeLaser, hitVille, null, this);
+    
+    //  The score
+    scoreText = this.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#FFFFFF' }).setScrollFactor(0);
+
+    //  Collide the player and the stars with the platforms
+    this.physics.add.collider(player, platforms);
+    this.physics.add.collider(stars, platforms);
+    this.physics.add.collider(meteorites, platforms);
+
+    //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
+    this.physics.add.overlap(player, stars, collectStar, null, this);
+
+    this.physics.add.collider(player, meteorites, hitBomb, null, this);
+    
+    this.cameras.main.setBounds(0, 0, 2560, 1440);
+    this.cameras.main.setSize(1920, 1080);
+    this.cameras.main.startFollow(player);
+    
+}
+
+function update ()
+{
+    
+    
+   /* if (createMeteorite == true ){
+        createMeteorite = false;
+        spawnMeteorite(this);
+    }*/
+    
+    let pad = Phaser.Input.Gamepad.Gamepad;
+
+    if(this.input.gamepad.total){
+        pad = this.input.gamepad.getPad(0)
+        xAxis = pad ? pad.axes[0].getValue() : 0;
+        yAxis = pad ? pad.axes[1].getValue() : 0;
+    }
+    
+    if (gameOver)
+    {
+        return;
+    }
+    //Controle stick analogique
+    if (cursors.left.isDown || pad.left || xAxis<0)
+    {
+        player.direction = 'left';
+        player.setVelocityX(-160);
+
+        player.anims.play('left', true);
+    }
+    else if (cursors.right.isDown|| pad.right || xAxis>0)
+    {
+        player.direction='right';
+        player.setVelocityX(160);
+
+        player.anims.play('right', true);
+    }
+    
+    else
+    {
+        player.setVelocityX(0);
+
+        player.anims.play('turn');
+    }
+
+    if (cursors.up.isDown && player.body.touching.down)
+    {
+        player.setVelocityY(-330);
+        player.anims.play('up', true);
+    }
+    
+    boutonFeu = this.input.keyboard.addKey('A');
+   
+    if ( Phaser.Input.Keyboard.JustDown(boutonFeu)) {
+        tirer(player);
+    }
+    //si il n'y a plus de villes, Game Over
+    if(ville.countActive(true)===0){
+        this.add.image(960, 540, 'gameOver').setScrollFactor(0);
+    }
+    
+    
+}
+    
+    function tirer(player) {
+        var coefDir;
+	    if (player.direction == 'left') { coefDir = -1; } else { coefDir = 1 }
+        // on crée la balle a coté du joueur
+        var laser = groupeLaser.create(player.x + (25 * coefDir), player.y - 4, 'laser');
+        // parametres physiques de la balle.
+        laser.setCollideWorldBounds(false);
+        laser.body.allowGravity =false;
+        laser.setVelocity(1000 * coefDir, 0); // vitesse en x et en y
+    
+}
+
+function collectStar (player, star)
+{
+    star.disableBody(true, true);
+
+    //  Add and update the score
+    score += 10;
+    scoreText.setText('Score: ' + score);
+
+    if (stars.countActive(true) === 0)
+    {
+        //  A new batch of stars to collect
+        stars.children.iterate(function (child) {
+
+            child.enableBody(true, child.x, 0, true, true);
+
+        });
+
+        var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+
+        var meteorite = meteorites.create(x, 16, 'meteorite');
+        meteorite.setBounce(1);
+        meteorite.setCollideWorldBounds(true);
+        meteorite.setVelocity(Phaser.Math.Between(-200, 200), 20);
+        meteorite.allowGravity = false;
+    }
+}
+
+function hitMeteorite(laser, meteorites) {
+    meteorites.anims.play('meteoriteCasse', true);
+   this.time.addEvent({
+    delay: 800,
+    callback: ()=>{
+       meteorites.destroy();
+    }})
+    
+} 
+   
+    function hitVille(ville, meteorites) {
+        meteorites.anims.play('meteoriteCasse', true);
+        ville.destroy();
+            this.time.addEvent({
+            delay: 800,
+            callback: ()=>{
+            meteorites.destroy();
+            }  
+        })
+} 
+
+/*function spawnMeteorite(test){
+   this.time.addEvent({
+            delay: 800,
+            callback: function(){createMeteorite = true;}
+    })
+    
+    var x = Phaser.Math.Between(100, 2460);
+
+    var meteorite = meteorites.create(x, 16, 'meteorite');
+    meteorite.setBounce(1);
+    meteorite.setCollideWorldBounds(true);
+    meteorite.setVelocity(Phaser.Math.Between(-200, 200), 20);
+    meteorite.allowGravity = false;
+}*/
+
+function hitBomb (player, bomb)
+{
+    this.physics.pause();
+
+    player.setTint(0xff0000);
+
+    player.anims.play('turn');
+
+    gameOver = true;
+}
+
+</script>
+
+</body>
+</html>
