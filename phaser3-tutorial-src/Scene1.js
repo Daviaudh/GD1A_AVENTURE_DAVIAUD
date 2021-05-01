@@ -8,10 +8,13 @@ class Scene1 extends Phaser.Scene{
     {
         this.load.spritesheet('vaisseau', 'assets/SpriteSheet_Vaisseau.png', { frameWidth: 62, frameHeight: 33 });
         this.load.image('Set', 'tileSet.png');
+        this.load.image('munition', 'assets/rapidFire.png');
+        this.load.image('hp', 'assets/cellule.png');
         this.load.image('meteorite', 'assets/Meteorite1.png');
+        this.load.image('balle', 'assets/laser.png');
         this.load.tilemapTiledJSON('village', 'carte1.json');
         this.load.tilemapTiledJSON('donjon', 'carte2.json');
-        
+
     }
     create(){
         
@@ -22,26 +25,37 @@ class Scene1 extends Phaser.Scene{
         this.top = this.village.createStaticLayer('top', this.tileSet, 0,0);
         this.player = this.physics.add.sprite(500, 450, 'vaisseau');
         this.player.setCollideWorldBounds(true);
-        
+        this.boutonFeu = this.input.keyboard.addKey('A');
+       
  
 
         this.camera=this.cameras.main.setSize(1920,1080);
         this.camera.startFollow(this.player, true, 0.08,0.08);
         this.camera.setBounds(0,0,3200,3200);
         this.hptext = this.add.text(16, 32, 'hp : ' +hp, {fontSize:'32px', fill:'#fff'}).setScrollFactor(0);
+        this.muntext = this.add.text(16, 64, 'Mun : ' +munition, {fontSize:'32px', fill:'#fff'}).setScrollFactor(0);
+
 
         this.ennemis = this.physics.add.group();
-
+        this.groupeBalles = this.physics.add.group();
+        this.groupeMunitions = this.physics.add.group();
+        this.groupeHp = this.physics.add.group();
+        
         new Ennemi(this, 400, 700, 'meteorite' );
 
         this.physics.add.overlap(this.player, this.ennemis, this.pertehp, null,this);
+        this.physics.add.overlap(this.player, this.groupeMunitions, this.recupMunition, null,this);
+        this.physics.add.overlap(this.groupeBalles, this.ennemis, this.dead, null,this);
+        this.physics.add.overlap(this.player, this.groupeHp, this.recupHp, null,this);
         this.physics.add.collider(this.player, this.top);
         this.physics.add.collider(this.ennemis, this.top);
         this.top.setCollisionByProperty({collides:true});
     }
     update(){
         this.hptext.setText('hp : ' +hp);
+        this.muntext.setText('Mun : ' +munition);
         let pad = Phaser.Input.Gamepad.Gamepad;
+        
 
         if(this.input.gamepad.total){
             pad = this.input.gamepad.getPad(0)
@@ -83,6 +97,9 @@ class Scene1 extends Phaser.Scene{
             ennemi.movement(this.player);
           
         }
+        if ( Phaser.Input.Keyboard.JustDown(this.boutonFeu)) {
+            this.tirer(this.player);
+        }
     }
     pertehp(player,ennemi){
           
@@ -98,6 +115,48 @@ class Scene1 extends Phaser.Scene{
             }
         }
     }
+    tirer(player) {
+       if (peutTirer && munition > 0 )
+       {
+             munition--;
+             peutTirer = false;
+             this.time.addEvent({delay: fireRate, callback: function(){peutTirer= true;}, callbackScope: this}); 
+             var coefDir;
+	         if (player.direction == 'left') { coefDir = -1; } else { coefDir = 1 }
+             // on crée la balle a coté du joueur
+             var balle = this.groupeBalles.create(player.x + (25 * coefDir), player.y - 4, 'balle');
+             // parametres physiques de la balle.
+             balle.setCollideWorldBounds(false);
+             balle.body.allowGravity =false;
+             balle.setVelocity(1000 * coefDir, 0); // vitesse en x et en y
+        }
+    }
+    dead(balles, ennemis)
+    {
+        let random = Math.floor(Math.random()*2);
+        if (random == 0 ){
+            var munition = this.groupeMunitions.create(ennemis.x,ennemis.y,'munition')
+        } 
+        else
+        {
+            var munition = this.groupeHp.create(ennemis.x,ennemis.y,'hp')
 
+        }     
+        ennemis.destroy();
+        balles.destroy();
+    }
+    recupMunition(player, munitions)
+    {
+        munition +=10;
+        munitions.destroy();
+    }
+    recupHp(player,cellule)
+    {
+        if (hp<10)
+        {
+        hp +=1;
+        cellule.destroy();
+        }
+    }
 
 }
