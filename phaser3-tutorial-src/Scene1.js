@@ -108,10 +108,12 @@ class Scene1 extends Phaser.Scene{
         }
         else if (this.cursors.up.isDown || pad.up)
         {
+            this.player.direction='up';
             this.player.setVelocityY(-vitesse);
         }
         else if (this.cursors.down.isDown|| pad.down)
         {
+            this.player.direction='down';
             this.player.setVelocityY(vitesse);
         }
         else
@@ -148,19 +150,26 @@ class Scene1 extends Phaser.Scene{
         }
     }
     tirer(player) {
-       if (peutTirer && munition > 0 && arme )
+      
+        if (peutTirer && munition > 0 && arme )
        {
+           var coefDirx = 0;
+           var coefDiry = 0;
              munition--;
              peutTirer = false;
              this.time.addEvent({delay: fireRate, callback: function(){peutTirer= true;}, callbackScope: this}); 
              var coefDir;
-	         if (player.direction == 'left') { coefDir = -1; } else { coefDir = 1 }
+	         if (player.direction == 'left') { coefDirx = -1; } 
+             else if(player.direction == 'right') { coefDirx = 1 } else{coefDirx = 0}
+             if(player.direction == 'up') { coefDiry = -1 } 
+             else if(player.direction == 'down') { coefDiry = 1 } else{coefDiry = 0}
+
              // on crée la balle a coté du joueur
-             var balle = this.groupeBalles.create(player.x + (25 * coefDir), player.y - 4, 'balle');
+             var balle = this.groupeBalles.create(player.x + (25 * coefDirx), player.y - 4, 'balle');
              // parametres physiques de la balle.
              balle.setCollideWorldBounds(false);
              balle.body.allowGravity =false;
-             balle.setVelocity(1000 * coefDir, 0); // vitesse en x et en y
+             balle.setVelocity(1000 * coefDirx, 1000 * coefDiry); // vitesse en x et en y
         }
     }
     dead(balles, ennemis)
